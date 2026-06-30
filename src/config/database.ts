@@ -4,13 +4,21 @@ let connection: mysql.Connection | null = null;
 
 export const connectDB = async () => {
   try {
-    connection = await mysql.createConnection({
-      host: process.env.DB_HOST || 'localhost',
-      user: process.env.DB_USER || 'root',
-      password: process.env.DB_PASSWORD || '',
-      database: process.env.DB_NAME || 'rentyourneeds',
-      port: parseInt(process.env.DB_PORT || '3306'),
-    });
+    // Support Railway MySQL plugin vars (MYSQLHOST/MYSQLUSER/…),
+    // standard DB_* vars, or a MYSQL_URL / DATABASE_URL connection string
+    const mysqlUrl = process.env.MYSQL_URL || process.env.DATABASE_URL;
+
+    if (mysqlUrl) {
+      connection = await mysql.createConnection(mysqlUrl);
+    } else {
+      connection = await mysql.createConnection({
+        host:     process.env.DB_HOST     || process.env.MYSQLHOST     || 'localhost',
+        user:     process.env.DB_USER     || process.env.MYSQLUSER     || 'root',
+        password: process.env.DB_PASSWORD || process.env.MYSQLPASSWORD || '',
+        database: process.env.DB_NAME     || process.env.MYSQLDATABASE || 'rentyourneeds',
+        port:     parseInt(process.env.DB_PORT || process.env.MYSQLPORT || '3306'),
+      });
+    }
 
     await createTables();
     console.log('✓ MySQL connected successfully');
