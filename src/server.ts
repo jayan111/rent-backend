@@ -24,7 +24,7 @@ import subscriptionRoutes from './routes/subscriptions';
 import inventoryRoutes from './routes/inventory';
 import adminRoutes from './routes/admin';
 import kycRoutes from './routes/kyc';
-import { healthCheck, globalErrorHandler, validateRequest, setupGracefulShutdown } from './middleware/serverValidation';
+import { healthCheck, dbHealthCheck, globalErrorHandler, validateRequest, setupGracefulShutdown } from './middleware/serverValidation';
 
 dotenv.config();
 
@@ -83,8 +83,9 @@ app.get('/api/orders/stream', (req, res) => {
   addSSEClient(clientId, res);
 });
 
-// Health check
+// Health checks
 app.get('/health', healthCheck);
+app.get('/health/db', dbHealthCheck);
 
 // Error handling
 app.use(errorHandler);

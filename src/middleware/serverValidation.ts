@@ -1,9 +1,9 @@
 import { Request, Response, NextFunction } from 'express';
+import { getDB } from '../config/database';
 
 // Health check middleware
 export const healthCheck = (req: Request, res: Response, next: NextFunction) => {
   try {
-    // Check server health
     const healthStatus = {
       status: 'healthy',
       timestamp: new Date().toISOString(),
@@ -11,13 +11,37 @@ export const healthCheck = (req: Request, res: Response, next: NextFunction) => 
       memory: process.memoryUsage(),
       pid: process.pid
     };
-    
     res.json(healthStatus);
   } catch (error) {
-    res.status(503).json({
-      status: 'unhealthy',
-      error: 'Server health check failed'
-    });
+    res.status(503).json({ status: 'unhealthy', error: 'Server health check failed' });
+  }
+};
+
+// DB health check — shows actual connection status and which env vars are present
+export const dbHealthCheck = async (req: Request, res: Response) => {
+  const db = await getDB();
+
+  const envVars = {
+    MYSQL_URL:         !!process.env.MYSQL_URL,
+    MYSQL_PRIVATE_URL: !!process.env.MYSQL_PRIVATE_URL,
+    MYSQL_PUBLIC_URL:  !!process.env.MYSQL_PUBLIC_URL,
+    DATABASE_URL:      !!process.env.DATABASE_URL,
+    DB_HOST:           process.env.DB_HOST    || process.env.MYSQLHOST    || process.env.MYSQL_HOST    || '(not set)',
+    DB_USER:           process.env.DB_USER    || process.env.MYSQLUSER    || process.env.MYSQL_USER    || '(not set)',
+    DB_NAME:           process.env.DB_NAME    || process.env.MYSQLDATABASE|| process.env.MYSQL_DATABASE|| '(not set)',
+    DB_PORT:           process.env.DB_PORT    || process.env.MYSQLPORT    || process.env.MYSQL_PORT    || '(not set)',
+    DB_PASSWORD_SET:   !!(process.env.DB_PASSWORD || process.env.MYSQLPASSWORD || process.env.MYSQL_PASSWORD),
+  };
+
+  if (!db) {
+    return res.status(503).json({ status: 'disconnected', envVars });
+  }
+
+  try {
+    await db.query('SELECT 1');
+    return res.json({ status: 'connected', envVars });
+  } catch (err: any) {
+    return res.status(503).json({ status: 'error', error: err.message, envVars });
   }
 };
 

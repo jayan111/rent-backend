@@ -4,27 +4,48 @@ let connection: mysql.Connection | null = null;
 
 export const connectDB = async () => {
   try {
-    // Support Railway MySQL plugin vars (MYSQLHOST/MYSQLUSER/…),
-    // standard DB_* vars, or a MYSQL_URL / DATABASE_URL connection string
-    const mysqlUrl = process.env.MYSQL_URL || process.env.DATABASE_URL;
+    // Railway MySQL plugin can expose vars in multiple formats — try all of them
+    const mysqlUrl =
+      process.env.MYSQL_URL ||
+      process.env.MYSQL_PRIVATE_URL ||
+      process.env.MYSQL_PUBLIC_URL ||
+      process.env.DATABASE_URL;
 
+    const host     = process.env.DB_HOST     || process.env.MYSQLHOST     || process.env.MYSQL_HOST     || 'localhost';
+    const user     = process.env.DB_USER     || process.env.MYSQLUSER     || process.env.MYSQL_USER     || 'root';
+    const password = process.env.DB_PASSWORD || process.env.MYSQLPASSWORD || process.env.MYSQL_PASSWORD || '';
+    const database = process.env.DB_NAME     || process.env.MYSQLDATABASE || process.env.MYSQL_DATABASE || 'rentyourneeds';
+    const port     = parseInt(process.env.DB_PORT || process.env.MYSQLPORT || process.env.MYSQL_PORT || '3306');
+
+    // Log what we're attempting (hide password)
     if (mysqlUrl) {
+      const safeUrl = mysqlUrl.replace(/:([^@]+)@/, ':***@');
+      console.log(`🔌 Connecting via URL: ${safeUrl}`);
       connection = await mysql.createConnection(mysqlUrl);
     } else {
-      connection = await mysql.createConnection({
-        host:     process.env.DB_HOST     || process.env.MYSQLHOST     || 'localhost',
-        user:     process.env.DB_USER     || process.env.MYSQLUSER     || 'root',
-        password: process.env.DB_PASSWORD || process.env.MYSQLPASSWORD || '',
-        database: process.env.DB_NAME     || process.env.MYSQLDATABASE || 'rentyourneeds',
-        port:     parseInt(process.env.DB_PORT || process.env.MYSQLPORT || '3306'),
-      });
+      console.log(`🔌 Connecting to MySQL: ${user}@${host}:${port}/${database}`);
+      connection = await mysql.createConnection({ host, user, password, database, port });
     }
 
     await createTables();
     console.log('✓ MySQL connected successfully');
     console.log('✓ Database tables ready');
   } catch (error) {
-    console.error('✗ Database connection failed:', (error as Error).message);
+    const err = error as any;
+    console.error('✗ MySQL connection failed');
+    console.error('  Error code   :', err.code);
+    console.error('  Error message:', err.message);
+    console.error('  Available DB env vars:', {
+      MYSQL_URL:        !!process.env.MYSQL_URL,
+      MYSQL_PRIVATE_URL:!!process.env.MYSQL_PRIVATE_URL,
+      DATABASE_URL:     !!process.env.DATABASE_URL,
+      DB_HOST:          process.env.DB_HOST,
+      MYSQLHOST:        process.env.MYSQLHOST,
+      MYSQL_HOST:       process.env.MYSQL_HOST,
+      DB_NAME:          process.env.DB_NAME,
+      MYSQLDATABASE:    process.env.MYSQLDATABASE,
+      MYSQL_DATABASE:   process.env.MYSQL_DATABASE,
+    });
     console.log('Server will continue without database');
   }
 };
