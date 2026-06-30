@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: rentyourneeds-backend
+    runtime: node
+    buildCommand: npm install && npm run build
+    startCommand: node dist/server.js
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 8000
+      # Set the rest in the Render dashboard
